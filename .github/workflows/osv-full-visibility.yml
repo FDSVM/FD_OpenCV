@@ -232,7 +232,7 @@ jobs:
       # ─────────────────────────────────────────
       # SECTION C: DEPENDENCY IDENTIFICATION
       # ─────────────────────────────────────────
-      - name: "🔗 Section C-1: Git submodules"
+      - name: "🔗 Section C-1: WHO do we pull code from? (Git Submodules)"
         run: |
           REPORT="dependencies.txt"
 
@@ -264,7 +264,7 @@ jobs:
 
           cat "$REPORT"
 
-      - name: "🔗 Section C-2: Project modules, vendor dirs, and bundled libraries"
+      - name: "🔗 Section C-2: WHAT code lives inside our repo? (Bundled Libraries)"
         run: |
           REPORT="dependencies.txt"
 
@@ -413,7 +413,7 @@ jobs:
 
           cat "$REPORT"
 
-      - name: "🔗 Section C-3: #include analysis with source file mapping"
+      - name: "🔗 Section C-3: WHICH files use WHICH libraries? (#include Mapping)"
         run: |
           REPORT="dependencies.txt"
 
@@ -485,7 +485,7 @@ jobs:
 
           cat "$REPORT"
 
-      - name: "🔗 Section C-4: Build system and package manager dependencies"
+      - name: "🔗 Section C-4: WHAT does our build system need? (CMake + Manifests)"
         run: |
           REPORT="dependencies.txt"
 
@@ -588,7 +588,7 @@ jobs:
 
           cat "$REPORT"
 
-      - name: "🔗 Section C-5: Language-specific dependencies"
+      - name: "🔗 Section C-5: WHAT do our scripts import? (Language-Specific)"
         run: |
           REPORT="dependencies.txt"
 
