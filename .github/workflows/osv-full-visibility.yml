@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master" ]
   schedule:
-    - cron: '43 22 * * 6' # Runs weekly on Saturday at 22:43 UTC
+    - cron: '43 22 * * 6'  # Every Saturday at 22:43 UTC
 
 permissions:
   security-events: write
@@ -17,15 +17,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # -------- FILE LIST --------
-      - name: Generate source file list
+      - name: Generate & display source file list
         run: |
           echo "C/C++/Header files:" > scanned_files.txt
-          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) >> scanned_files.txt
+          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) | tee -a scanned_files.txt
+
           echo "" >> scanned_files.txt
-          echo "Total files: $(wc -l < scanned_files.txt)" >> scanned_files.txt
+          echo "Total files: $(find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) | wc -l)" | tee -a scanned_files.txt
+
+          # Display in Actions UI
+          echo "::group::Scanned source files"
+          cat scanned_files.txt
+          echo "::endgroup::"
 
       - name: Upload file list
         uses: actions/upload-artifact@v4
@@ -34,22 +40,27 @@ jobs:
           path: scanned_files.txt
 
       # -------- DEPENDENCY LIST --------
-      - name: Extract dependency indicators
+      - name: Extract & display dependency indicators
         run: |
           echo "Dependency Indicators:" > dependencies.txt
           echo "" >> dependencies.txt
 
           echo "---- CMake ----" >> dependencies.txt
-          grep -r "find_package" . >> dependencies.txt || true
+          grep -r "find_package" . >> dependencies.txt || echo "None found" >> dependencies.txt
 
           echo "" >> dependencies.txt
           echo "---- Include Statements ----" >> dependencies.txt
-          grep -r "^#include" . >> dependencies.txt || true
+          grep -r "^#include" . >> dependencies.txt || echo "None found" >> dependencies.txt
 
           echo "" >> dependencies.txt
           echo "---- vcpkg / manifests ----" >> dependencies.txt
-          find . -name "vcpkg.json" >> dependencies.txt || true
-          find . -name "conanfile.*" >> dependencies.txt || true
+          find . -name "vcpkg.json" >> dependencies.txt || echo "None found" >> dependencies.txt
+          find . -name "conanfile.*" >> dependencies.txt || echo "None found" >> dependencies.txt
+
+          # Display in Actions UI
+          echo "::group::Detected dependencies"
+          cat dependencies.txt
+          echo "::endgroup::"
 
       - name: Upload dependency list
         uses: actions/upload-artifact@v4
@@ -59,9 +70,15 @@ jobs:
 
   scan-osv:
     needs: inventory
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
-    with:
-      scan-args: |
-        -r
-        --skip-git
-        ./
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1
+        with:
+          scan-args: |
+            -r
+            --skip-git
+            ./
