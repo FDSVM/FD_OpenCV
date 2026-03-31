@@ -35,9 +35,7 @@ jobs:
 
       # -------- DEPENDENCY SBOM --------
       - name: Install CycloneDX Python tool
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install cyclonedx-bom
+        run: python3 -m pip install --upgrade pip cyclonedx-bom --quiet
 
       - name: Generate SBOM
         run: |
@@ -49,6 +47,20 @@ jobs:
         with:
           name: sbom
           path: sbom.json
+
+      - name: Generate human-readable dependency summary
+        run: |
+          echo "Dependencies in SBOM:" > dependencies.txt
+          jq -r '.components[] | "\(.name)@\(.version)"' sbom.json >> dependencies.txt || true
+          echo "" >> dependencies.txt
+          echo "Total dependencies: $(wc -l < dependencies.txt)" >> dependencies.txt
+          cat dependencies.txt
+
+      - name: Upload dependency summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependencies-summary
+          path: dependencies.txt
 
   scan-osv:
     needs: inventory
