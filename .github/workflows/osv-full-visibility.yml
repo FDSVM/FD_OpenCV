@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master" ]
   schedule:
-    - cron: '43 22 * * 6'
+    - cron: '43 22 * * 6' # Runs weekly on Saturday at 22:43 UTC
 
 permissions:
   security-events: write
@@ -17,16 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      # Generate & display source files
+      # -------- FILE LIST --------
       - name: Generate source file list
         run: |
           echo "C/C++/Header files:" > scanned_files.txt
-          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) | tee -a scanned_files.txt
-          echo "::group::Scanned source files"
-          cat scanned_files.txt
-          echo "::endgroup::"
+          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) >> scanned_files.txt
+          echo "" >> scanned_files.txt
+          echo "Total files: $(wc -l < scanned_files.txt)" >> scanned_files.txt
 
       - name: Upload file list
         uses: actions/upload-artifact@v4
@@ -34,20 +33,23 @@ jobs:
           name: scanned-files
           path: scanned_files.txt
 
-      # Extract & display dependencies
+      # -------- DEPENDENCY LIST --------
       - name: Extract dependency indicators
         run: |
           echo "Dependency Indicators:" > dependencies.txt
+          echo "" >> dependencies.txt
+
           echo "---- CMake ----" >> dependencies.txt
-          grep -r "find_package" . >> dependencies.txt || echo "None found" >> dependencies.txt
+          grep -r "find_package" . >> dependencies.txt || true
+
+          echo "" >> dependencies.txt
           echo "---- Include Statements ----" >> dependencies.txt
-          grep -r "^#include" . >> dependencies.txt || echo "None found" >> dependencies.txt
+          grep -r "^#include" . >> dependencies.txt || true
+
+          echo "" >> dependencies.txt
           echo "---- vcpkg / manifests ----" >> dependencies.txt
-          find . -name "vcpkg.json" >> dependencies.txt || echo "None found" >> dependencies.txt
-          find . -name "conanfile.*" >> dependencies.txt || echo "None found" >> dependencies.txt
-          echo "::group::Detected dependencies"
-          cat dependencies.txt
-          echo "::endgroup::"
+          find . -name "vcpkg.json" >> dependencies.txt || true
+          find . -name "conanfile.*" >> dependencies.txt || true
 
       - name: Upload dependency list
         uses: actions/upload-artifact@v4
@@ -57,7 +59,7 @@ jobs:
 
   scan-osv:
     needs: inventory
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
     with:
       scan-args: |
         -r
