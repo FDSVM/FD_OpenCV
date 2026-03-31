@@ -1,12 +1,12 @@
-name: Full Dependency Audit + OSV Scanner
+name: OSV Scanner + Files + Dependencies
 
 on:
   push:
-    branches: ["master"]
+    branches: [ "master" ]
   pull_request:
-    branches: ["master"]
+    branches: [ "master" ]
   schedule:
-    - cron: '43 22 * * 6' # Weekly on Saturday 22:43 UTC
+    - cron: '43 22 * * 6' # Weekly on Saturday at 22:43 UTC
 
 permissions:
   security-events: write
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # -------- SOURCE FILE LIST --------
+      # -------- FILE LIST --------
       - name: Generate source file list
         run: |
           echo "C/C++/Header files:" > scanned_files.txt
@@ -27,56 +27,49 @@ jobs:
           echo "" >> scanned_files.txt
           echo "Total files: $(wc -l < scanned_files.txt)" >> scanned_files.txt
 
-      - name: Upload source file list
+          # Display files in Actions UI
+          echo "---- FILES SCANNED ----"
+          cat scanned_files.txt
+
+      - name: Upload file list artifact
         uses: actions/upload-artifact@v4
         with:
           name: scanned-files
           path: scanned_files.txt
 
-      # -------- DEPENDENCY SBOM --------
-      - name: Install CycloneDX Python tool
-        run: python3 -m pip install --upgrade pip cyclonedx-bom --quiet
-
-      - name: Generate SBOM
+      # -------- DEPENDENCY LIST --------
+      - name: Extract dependency indicators
         run: |
-          echo "Generating CycloneDX SBOM..."
-          cyclonedx-py -o sbom.json
-
-      - name: Upload SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom.json
-
-      - name: Generate human-readable dependency summary
-        run: |
-          echo "Dependencies in SBOM:" > dependencies.txt
-          jq -r '.components[] | "\(.name)@\(.version)"' sbom.json >> dependencies.txt || true
+          echo "Dependency Indicators:" > dependencies.txt
           echo "" >> dependencies.txt
-          echo "Total dependencies: $(wc -l < dependencies.txt)" >> dependencies.txt
+
+          echo "---- CMake ----" >> dependencies.txt
+          grep -r "find_package" . >> dependencies.txt || true
+
+          echo "" >> dependencies.txt
+          echo "---- Include Statements ----" >> dependencies.txt
+          grep -r "^#include" . >> dependencies.txt || true
+
+          echo "" >> dependencies.txt
+          echo "---- vcpkg / manifests ----" >> dependencies.txt
+          find . -name "vcpkg.json" >> dependencies.txt || true
+          find . -name "conanfile.*" >> dependencies.txt || true
+
+          # Display dependencies in Actions UI
+          echo "---- DEPENDENCIES FOUND ----"
           cat dependencies.txt
 
-      - name: Upload dependency summary
+      - name: Upload dependency list artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dependencies-summary
+          name: detected-dependencies
           path: dependencies.txt
 
   scan-osv:
     needs: inventory
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Download SBOM
-        uses: actions/download-artifact@v4
-        with:
-          name: sbom
-          path: .
-
-      - name: Run OSV Scanner on SBOM
-        uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
-        with:
-          scan-args: |
-            --sbom sbom.json
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
+    with:
+      scan-args: |
+        -r
+        --skip-git
+        ./
