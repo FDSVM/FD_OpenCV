@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master" ]
   schedule:
-    - cron: '43 22 * * 6'  # Every Saturday at 22:43 UTC
+    - cron: '43 22 * * 6'
 
 permissions:
   security-events: write
@@ -19,16 +19,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # -------- FILE LIST --------
-      - name: Generate & display source file list
+      # Generate & display source files
+      - name: Generate source file list
         run: |
           echo "C/C++/Header files:" > scanned_files.txt
           find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) | tee -a scanned_files.txt
-
-          echo "" >> scanned_files.txt
-          echo "Total files: $(find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) | wc -l)" | tee -a scanned_files.txt
-
-          # Display in Actions UI
           echo "::group::Scanned source files"
           cat scanned_files.txt
           echo "::endgroup::"
@@ -39,25 +34,17 @@ jobs:
           name: scanned-files
           path: scanned_files.txt
 
-      # -------- DEPENDENCY LIST --------
-      - name: Extract & display dependency indicators
+      # Extract & display dependencies
+      - name: Extract dependency indicators
         run: |
           echo "Dependency Indicators:" > dependencies.txt
-          echo "" >> dependencies.txt
-
           echo "---- CMake ----" >> dependencies.txt
           grep -r "find_package" . >> dependencies.txt || echo "None found" >> dependencies.txt
-
-          echo "" >> dependencies.txt
           echo "---- Include Statements ----" >> dependencies.txt
           grep -r "^#include" . >> dependencies.txt || echo "None found" >> dependencies.txt
-
-          echo "" >> dependencies.txt
           echo "---- vcpkg / manifests ----" >> dependencies.txt
           find . -name "vcpkg.json" >> dependencies.txt || echo "None found" >> dependencies.txt
           find . -name "conanfile.*" >> dependencies.txt || echo "None found" >> dependencies.txt
-
-          # Display in Actions UI
           echo "::group::Detected dependencies"
           cat dependencies.txt
           echo "::endgroup::"
@@ -70,15 +57,9 @@ jobs:
 
   scan-osv:
     needs: inventory
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Run OSV Scanner
-        uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1
-        with:
-          scan-args: |
-            -r
-            --skip-git
-            ./
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1
+    with:
+      scan-args: |
+        -r
+        --skip-git
+        ./
