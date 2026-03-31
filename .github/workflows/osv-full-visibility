@@ -1,0 +1,67 @@
+name: OSV Scanner + Files + Dependencies
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '36 22 * * 5'
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      # -------- FILE LIST --------
+      - name: Generate source file list
+        run: |
+          echo "C/C++/Header files:" > scanned_files.txt
+          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) >> scanned_files.txt
+          echo "" >> scanned_files.txt
+          echo "Total files: $(wc -l < scanned_files.txt)" >> scanned_files.txt
+
+      - name: Upload file list
+        uses: actions/upload-artifact@v3
+        with:
+          name: scanned-files
+          path: scanned_files.txt
+
+      # -------- DEPENDENCY LIST --------
+      - name: Extract dependency indicators
+        run: |
+          echo "Dependency Indicators:" > dependencies.txt
+          echo "" >> dependencies.txt
+
+          echo "---- CMake ----" >> dependencies.txt
+          grep -r "find_package" . >> dependencies.txt || true
+
+          echo "" >> dependencies.txt
+          echo "---- Include Statements ----" >> dependencies.txt
+          grep -r "^#include" . >> dependencies.txt || true
+
+          echo "" >> dependencies.txt
+          echo "---- vcpkg / manifests ----" >> dependencies.txt
+          find . -name "vcpkg.json" >> dependencies.txt || true
+          find . -name "conanfile.*" >> dependencies.txt || true
+
+      - name: Upload dependency list
+        uses: actions/upload-artifact@v3
+        with:
+          name: detected-dependencies
+          path: dependencies.txt
+
+  scan-osv:
+    needs: inventory
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
+    with:
+      scan-args: |
+        -r
+        --skip-git
+        ./
