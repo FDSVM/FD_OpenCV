@@ -1,6 +1,5 @@
 # Jonas: On 03/31/2026 built this to list out the OSV Scanner files and dependencies.
-# Fixed: heredoc indentation, find grouping, redundant sections,
-#        missing console output, empty-section guards.
+# Fixed: heredocs, find grouping, redundancy, empty output, function scoping.
 
 name: OSV Scanner + Full Dependency Audit
 
@@ -35,7 +34,6 @@ jobs:
       # ─────────────────────────────────────────
       - name: "📁 Section A: List every file in the repository"
         run: |
-          set -euo pipefail
           REPORT="all_files.txt"
 
           echo "============================================================" > "$REPORT"
@@ -74,7 +72,6 @@ jobs:
       # ─────────────────────────────────────────
       - name: "📝 Section B: Source code files organized by type"
         run: |
-          set -euo pipefail
           REPORT="source_files.txt"
 
           echo "============================================================" > "$REPORT"
@@ -86,81 +83,123 @@ jobs:
           echo "============================================================" >> "$REPORT"
           echo "" >> "$REPORT"
 
-          # ── Helper function ──
-          scan_files() {
-            local title="$1"; shift
-            local description="$1"; shift
-            local tmpfile="/tmp/scan_$$.txt"
+          # ── C Source Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  C SOURCE FILES (.c)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f -name "*.c" | sort >> "$REPORT" || true
+          C_COUNT=$(find . -not -path './.git/*' -type f -name "*.c" 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $C_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-            echo "────────────────────────────────────────" >> "$REPORT"
-            echo "  $title" >> "$REPORT"
-            if [ -n "$description" ]; then
-              echo "  $description" >> "$REPORT"
-            fi
-            echo "────────────────────────────────────────" >> "$REPORT"
+          # ── C++ Source Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  C++ SOURCE FILES (.cpp / .cc / .cxx)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f $ -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" $ | sort >> "$REPORT" || true
+          CPP_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" $ 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $CPP_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-            local find_args=()
-            local first=true
-            for ext in "$@"; do
-              if [ "$first" = true ]; then
-                find_args+=( -name "$ext" )
-                first=false
-              else
-                find_args+=( -o -name "$ext" )
-              fi
-            done
+          # ── Header Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  HEADER FILES (.h / .hpp)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f $ -name "*.h" -o -name "*.hpp" $ | sort >> "$REPORT" || true
+          H_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.h" -o -name "*.hpp" $ 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $H_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-            find . -not -path './.git/*' -type f $ "${find_args[@]}" $ 2>/dev/null | sort > "$tmpfile"
-            local count
-            count=$(wc -l < "$tmpfile")
+          # ── Python Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  PYTHON FILES (.py)" >> "$REPORT"
+          echo "  (Build scripts, bindings, tests)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f -name "*.py" | sort >> "$REPORT" || true
+          PY_COUNT=$(find . -not -path './.git/*' -type f -name "*.py" 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $PY_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-            if [ "$count" -eq 0 ]; then
-              echo "  (no files found)" >> "$REPORT"
-            else
-              cat "$tmpfile" >> "$REPORT"
-            fi
-            echo "  Count: $count" >> "$REPORT"
-            echo "" >> "$REPORT"
+          # ── Java Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  JAVA FILES (.java)" >> "$REPORT"
+          echo "  (Java/Android bindings)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f -name "*.java" | sort >> "$REPORT" || true
+          JAVA_COUNT=$(find . -not -path './.git/*' -type f -name "*.java" 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $JAVA_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-            LAST_COUNT=$count
-          }
+          # ── JavaScript / TypeScript Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  JAVASCRIPT FILES (.js / .ts / .jsx / .tsx)" >> "$REPORT"
+          echo "  (Node.js, frontend)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -not -path '*/node_modules/*' -type f $ -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" $ | sort >> "$REPORT" || true
+          JS_COUNT=$(find . -not -path './.git/*' -not -path '*/node_modules/*' -type f $ -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" $ 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $JS_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-          scan_files "C SOURCE FILES (.c)" "" "*.c"
-          C_COUNT=$LAST_COUNT
+          # ── Go Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  GO FILES (.go)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f -name "*.go" | sort >> "$REPORT" || true
+          GO_COUNT=$(find . -not -path './.git/*' -type f -name "*.go" 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $GO_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-          scan_files "C++ SOURCE FILES (.cpp / .cc / .cxx)" "" "*.cpp" "*.cc" "*.cxx"
-          CPP_COUNT=$LAST_COUNT
+          # ── Rust Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  RUST FILES (.rs)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f -name "*.rs" | sort >> "$REPORT" || true
+          RS_COUNT=$(find . -not -path './.git/*' -type f -name "*.rs" 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $RS_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-          scan_files "HEADER FILES (.h / .hpp)" "" "*.h" "*.hpp"
-          H_COUNT=$LAST_COUNT
+          # ── CUDA / GPU Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  CUDA / GPU FILES (.cu / .cl / .cuh)" >> "$REPORT"
+          echo "  (GPU-accelerated modules)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f $ -name "*.cu" -o -name "*.cl" -o -name "*.cuh" $ | sort >> "$REPORT" || true
+          GPU_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.cu" -o -name "*.cl" -o -name "*.cuh" $ 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $GPU_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-          scan_files "PYTHON FILES (.py)" "(Build scripts, bindings, tests)" "*.py"
-          PY_COUNT=$LAST_COUNT
+          # ── Assembly Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  ASSEMBLY FILES (.s / .S / .asm)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f $ -name "*.s" -o -name "*.S" -o -name "*.asm" $ | sort >> "$REPORT" || true
+          ASM_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.s" -o -name "*.S" -o -name "*.asm" $ 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $ASM_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-          scan_files "JAVA FILES (.java)" "(Java/Android bindings)" "*.java"
-          JAVA_COUNT=$LAST_COUNT
+          # ── Build / Config Files ──
+          echo "────────────────────────────────────────" >> "$REPORT"
+          echo "  BUILD & CONFIG FILES" >> "$REPORT"
+          echo "  (CMake, Makefiles, YAML, JSON)" >> "$REPORT"
+          echo "────────────────────────────────────────" >> "$REPORT"
+          find . -not -path './.git/*' -type f $ \
+            -name "CMakeLists.txt" -o -name "*.cmake" \
+            -o -name "Makefile" -o -name "*.mk" \
+            -o -name "*.json" -o -name "*.yml" -o -name "*.yaml" \
+            -o -name "*.cfg" -o -name "*.conf" -o -name "*.ini" \
+            -o -name "*.sln" -o -name "*.vcxproj" \
+          $ | sort >> "$REPORT" || true
+          BUILD_COUNT=$(find . -not -path './.git/*' -type f $ \
+            -name "CMakeLists.txt" -o -name "*.cmake" \
+            -o -name "Makefile" -o -name "*.mk" \
+            -o -name "*.json" -o -name "*.yml" -o -name "*.yaml" \
+            -o -name "*.cfg" -o -name "*.conf" -o -name "*.ini" \
+            -o -name "*.sln" -o -name "*.vcxproj" \
+          $ 2>/dev/null | wc -l || echo 0)
+          echo "  Count: $BUILD_COUNT" >> "$REPORT"
+          echo "" >> "$REPORT"
 
-          scan_files "JAVASCRIPT FILES (.js / .ts)" "(Node.js, frontend)" "*.js" "*.ts" "*.jsx" "*.tsx"
-          JS_COUNT=$LAST_COUNT
-
-          scan_files "GO FILES (.go)" "" "*.go"
-          GO_COUNT=$LAST_COUNT
-
-          scan_files "RUST FILES (.rs)" "" "*.rs"
-          RS_COUNT=$LAST_COUNT
-
-          scan_files "CUDA / GPU FILES (.cu / .cl / .cuh)" "(GPU-accelerated modules)" "*.cu" "*.cl" "*.cuh"
-          GPU_COUNT=$LAST_COUNT
-
-          scan_files "ASSEMBLY FILES (.s / .S / .asm)" "" "*.s" "*.S" "*.asm"
-          ASM_COUNT=$LAST_COUNT
-
-          scan_files "BUILD & CONFIG FILES" "(CMake, Makefiles, YAML, JSON)" \
-            "CMakeLists.txt" "*.cmake" "Makefile" "*.mk" \
-            "*.json" "*.yml" "*.yaml" "*.cfg" "*.conf" "*.ini" \
-            "*.sln" "*.vcxproj"
-          BUILD_COUNT=$LAST_COUNT
-
+          # ── Summary ──
           TOTAL=$((C_COUNT + CPP_COUNT + H_COUNT + PY_COUNT + JAVA_COUNT + JS_COUNT + GO_COUNT + RS_COUNT + GPU_COUNT + ASM_COUNT))
 
           echo "============================================================" >> "$REPORT"
@@ -195,7 +234,6 @@ jobs:
       # ─────────────────────────────────────────
       - name: "🔗 Section C-1: Git submodules"
         run: |
-          set -euo pipefail
           REPORT="dependencies.txt"
 
           echo "============================================================" > "$REPORT"
@@ -228,7 +266,6 @@ jobs:
 
       - name: "🔗 Section C-2: Project modules, vendor dirs, and bundled libraries"
         run: |
-          set -euo pipefail
           REPORT="dependencies.txt"
 
           echo "────────────────────────────────────────" >> "$REPORT"
@@ -378,7 +415,6 @@ jobs:
 
       - name: "🔗 Section C-3: #include analysis with source file mapping"
         run: |
-          set -euo pipefail
           REPORT="dependencies.txt"
 
           echo "────────────────────────────────────────" >> "$REPORT"
@@ -387,9 +423,7 @@ jobs:
           echo "────────────────────────────────────────" >> "$REPORT"
           echo "" >> "$REPORT"
 
-          # Check if there are any C/C++ files
-          CPP_FILE_COUNT=$(find . -not -path './.git/*' -type f \
-            $ -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.cc" $ | wc -l)
+          CPP_FILE_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.cc" $ 2>/dev/null | wc -l || echo 0)
 
           if [ "$CPP_FILE_COUNT" -eq 0 ]; then
             echo "  ⚠️  No C/C++ source files found in this repository." >> "$REPORT"
@@ -407,7 +441,7 @@ jobs:
             grep -rh "^#include\s*<" --include="*.c" --include="*.cpp" \
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | \
               sed 's/^[[:space:]]*//' | sort -u > /tmp/sys_includes.txt || true
-            SYS_COUNT=$(wc -l < /tmp/sys_includes.txt)
+            SYS_COUNT=$(wc -l < /tmp/sys_includes.txt || echo 0)
 
             if [ "$SYS_COUNT" -eq 0 ]; then
               echo "  (none found)" >> "$REPORT"
@@ -423,7 +457,7 @@ jobs:
             grep -rh '^#include\s*"' --include="*.c" --include="*.cpp" \
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | \
               sed 's/^[[:space:]]*//' | sort -u > /tmp/local_includes.txt || true
-            LOCAL_COUNT=$(wc -l < /tmp/local_includes.txt)
+            LOCAL_COUNT=$(wc -l < /tmp/local_includes.txt || echo 0)
 
             if [ "$LOCAL_COUNT" -eq 0 ]; then
               echo "  (none found)" >> "$REPORT"
@@ -440,12 +474,11 @@ jobs:
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | \
               sort | head -500 >> "$REPORT" || true
             TOTAL_INCLUDES=$(grep -rn "^#include" --include="*.c" --include="*.cpp" \
-              --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | wc -l || true)
+              --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | wc -l || echo 0)
             echo "" >> "$REPORT"
-            echo "  Total include statements: ${TOTAL_INCLUDES:-0}" >> "$REPORT"
+            echo "  Total include statements: $TOTAL_INCLUDES" >> "$REPORT"
             echo "" >> "$REPORT"
 
-            # Save counts for summary
             echo "$SYS_COUNT" > /tmp/sys_include_count.txt
             echo "$LOCAL_COUNT" > /tmp/local_include_count.txt
           fi
@@ -454,7 +487,6 @@ jobs:
 
       - name: "🔗 Section C-4: Build system and package manager dependencies"
         run: |
-          set -euo pipefail
           REPORT="dependencies.txt"
 
           echo "────────────────────────────────────────" >> "$REPORT"
@@ -463,24 +495,8 @@ jobs:
           echo "────────────────────────────────────────" >> "$REPORT"
           echo "" >> "$REPORT"
 
-          # ── Helper function for CMake grep ──
-          cmake_grep() {
-            local label="$1"
-            local pattern="$2"
-            echo "  $label:" >> "$REPORT"
-            local results
-            results=$(grep -rn "$pattern" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | sort || true)
-            if [ -z "$results" ]; then
-              echo "    (none found)" >> "$REPORT"
-            else
-              echo "$results" | sed 's/^/    /' >> "$REPORT"
-            fi
-            echo "" >> "$REPORT"
-          }
-
           # ── CMake Analysis ──
-          CMAKE_COUNT=$(find . -not -path './.git/*' -type f \
-            $ -name "CMakeLists.txt" -o -name "*.cmake" $ | wc -l)
+          CMAKE_COUNT=$(find . -not -path './.git/*' -type f $ -name "CMakeLists.txt" -o -name "*.cmake" $ 2>/dev/null | wc -l || echo 0)
 
           if [ "$CMAKE_COUNT" -eq 0 ]; then
             echo "  ⚠️  No CMake files found. Skipping CMake analysis." >> "$REPORT"
@@ -488,11 +504,51 @@ jobs:
           else
             echo "  Found $CMAKE_COUNT CMake files" >> "$REPORT"
             echo "" >> "$REPORT"
-            cmake_grep "find_package() — System libraries required" "find_package"
-            cmake_grep "FetchContent_Declare() — Downloaded during build" "FetchContent_Declare"
-            cmake_grep "ExternalProject_Add() — External projects" "ExternalProject_Add"
-            cmake_grep "add_subdirectory() — Subdirs in build" "add_subdirectory"
-            cmake_grep "target_link_libraries() — Linked libraries" "target_link_libraries"
+
+            echo "  find_package() — System libraries required:" >> "$REPORT"
+            RESULTS=$(grep -rn "find_package" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | sort || true)
+            if [ -z "$RESULTS" ]; then
+              echo "    (none found)" >> "$REPORT"
+            else
+              echo "$RESULTS" | sed 's/^/    /' >> "$REPORT"
+            fi
+            echo "" >> "$REPORT"
+
+            echo "  FetchContent_Declare() — Downloaded during build:" >> "$REPORT"
+            RESULTS=$(grep -rn "FetchContent_Declare" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | sort || true)
+            if [ -z "$RESULTS" ]; then
+              echo "    (none found)" >> "$REPORT"
+            else
+              echo "$RESULTS" | sed 's/^/    /' >> "$REPORT"
+            fi
+            echo "" >> "$REPORT"
+
+            echo "  ExternalProject_Add() — External projects:" >> "$REPORT"
+            RESULTS=$(grep -rn "ExternalProject_Add" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | sort || true)
+            if [ -z "$RESULTS" ]; then
+              echo "    (none found)" >> "$REPORT"
+            else
+              echo "$RESULTS" | sed 's/^/    /' >> "$REPORT"
+            fi
+            echo "" >> "$REPORT"
+
+            echo "  add_subdirectory() — Subdirs in build:" >> "$REPORT"
+            RESULTS=$(grep -rn "add_subdirectory" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | sort || true)
+            if [ -z "$RESULTS" ]; then
+              echo "    (none found)" >> "$REPORT"
+            else
+              echo "$RESULTS" | sed 's/^/    /' >> "$REPORT"
+            fi
+            echo "" >> "$REPORT"
+
+            echo "  target_link_libraries() — Linked libraries:" >> "$REPORT"
+            RESULTS=$(grep -rn "target_link_libraries" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | sort || true)
+            if [ -z "$RESULTS" ]; then
+              echo "    (none found)" >> "$REPORT"
+            else
+              echo "$RESULTS" | sed 's/^/    /' >> "$REPORT"
+            fi
+            echo "" >> "$REPORT"
           fi
 
           # ── Package Manager Files ──
@@ -534,7 +590,6 @@ jobs:
 
       - name: "🔗 Section C-5: Language-specific dependencies"
         run: |
-          set -euo pipefail
           REPORT="dependencies.txt"
 
           echo "────────────────────────────────────────" >> "$REPORT"
@@ -544,7 +599,7 @@ jobs:
 
           # ── Python ──
           echo "  --- Python ---" >> "$REPORT"
-          PY_COUNT=$(find . -not -path './.git/*' -type f -name "*.py" | wc -l)
+          PY_COUNT=$(find . -not -path './.git/*' -type f -name "*.py" 2>/dev/null | wc -l || echo 0)
           PY_IMPORT_COUNT=0
 
           if [ "$PY_COUNT" -eq 0 ]; then
@@ -555,7 +610,7 @@ jobs:
             echo "  Unique import statements:" >> "$REPORT"
             grep -rh "^import \|^from " --include="*.py" . 2>/dev/null | \
               sed 's/^[[:space:]]*//' | sort -u > /tmp/py_imports.txt || true
-            PY_IMPORT_COUNT=$(wc -l < /tmp/py_imports.txt)
+            PY_IMPORT_COUNT=$(wc -l < /tmp/py_imports.txt || echo 0)
 
             if [ "$PY_IMPORT_COUNT" -eq 0 ]; then
               echo "    (no imports found)" >> "$REPORT"
@@ -564,7 +619,6 @@ jobs:
             fi
             echo "  Count: $PY_IMPORT_COUNT unique Python imports" >> "$REPORT"
 
-            # Show requirements files
             echo "" >> "$REPORT"
             echo "  Requirements files:" >> "$REPORT"
             REQ_FOUND=$(find . -not -path './.git/*' -name "requirements*.txt" -type f 2>/dev/null || true)
@@ -604,7 +658,7 @@ jobs:
             fi
           else
             JS_COUNT=$(find . -not -path './.git/*' -not -path '*/node_modules/*' \
-              -type f -name "*.js" | wc -l)
+              -type f -name "*.js" 2>/dev/null | wc -l || echo 0)
             if [ "$JS_COUNT" -gt 0 ]; then
               echo "  Found $JS_COUNT .js files but no package.json" >> "$REPORT"
             else
@@ -619,7 +673,7 @@ jobs:
             echo "  go.mod contents:" >> "$REPORT"
             cat go.mod | sed 's/^/    /' >> "$REPORT"
           else
-            GO_COUNT=$(find . -not -path './.git/*' -type f -name "*.go" | wc -l)
+            GO_COUNT=$(find . -not -path './.git/*' -type f -name "*.go" 2>/dev/null | wc -l || echo 0)
             if [ "$GO_COUNT" -gt 0 ]; then
               echo "  Found $GO_COUNT .go files but no go.mod" >> "$REPORT"
             else
@@ -639,7 +693,7 @@ jobs:
               echo "    (no dependencies section found)" >> "$REPORT"
             fi
           else
-            RS_COUNT=$(find . -not -path './.git/*' -type f -name "*.rs" | wc -l)
+            RS_COUNT=$(find . -not -path './.git/*' -type f -name "*.rs" 2>/dev/null | wc -l || echo 0)
             if [ "$RS_COUNT" -gt 0 ]; then
               echo "  Found $RS_COUNT .rs files but no Cargo.toml" >> "$REPORT"
             else
@@ -686,7 +740,6 @@ jobs:
       # ─────────────────────────────────────────
       - name: "📊 Section D: Summary dashboard"
         run: |
-          set -euo pipefail
           REPORT="summary_report.txt"
 
           echo "============================================================" > "$REPORT"
@@ -752,4 +805,3 @@ jobs:
         -r
         --skip-git
         ./
-        
