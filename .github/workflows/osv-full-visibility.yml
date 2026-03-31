@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master" ]
   schedule:
-    - cron: '43 22 * * 6' # Weekly on Saturday at 22:43 UTC
+    - cron: '43 22 * * 6' # weekly on Saturday 22:43 UTC
 
 permissions:
   security-events: write
@@ -16,7 +16,7 @@ jobs:
   inventory:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
       # -------- FILE LIST --------
@@ -27,10 +27,6 @@ jobs:
           echo "" >> scanned_files.txt
           echo "Total files: $(wc -l < scanned_files.txt)" >> scanned_files.txt
 
-          # Display files in Actions UI
-          echo "---- FILES SCANNED ----"
-          cat scanned_files.txt
-
       - name: Upload file list artifact
         uses: actions/upload-artifact@v4
         with:
@@ -38,26 +34,40 @@ jobs:
           path: scanned_files.txt
 
       # -------- DEPENDENCY LIST --------
-      - name: Extract dependency indicators
+      - name: Extract precise dependencies
         run: |
           echo "Dependency Indicators:" > dependencies.txt
           echo "" >> dependencies.txt
 
-          echo "---- CMake ----" >> dependencies.txt
-          grep -r "find_package" . >> dependencies.txt || true
+          echo "---- CMake find_package ----" >> dependencies.txt
+          grep -r "find_package" . || echo "None found" >> dependencies.txt
+
+          echo "" >> dependencies.txt
+          echo "---- vcpkg.json Dependencies ----" >> dependencies.txt
+          for f in $(find . -name "vcpkg.json"); do
+            echo "File: $f" >> dependencies.txt
+            jq -r '.dependencies[]?' "$f" >> dependencies.txt
+          done || echo "None found" >> dependencies.txt
+
+          echo "" >> dependencies.txt
+          echo "---- Conan Dependencies ----" >> dependencies.txt
+          for f in $(find . -name "conanfile.txt" -o -name "conanfile.py"); do
+            echo "File: $f" >> dependencies.txt
+            if [[ "$f" == *.txt ]]; then
+              grep "^\s*\[requires\]" -A 10 "$f" >> dependencies.txt
+            else
+              echo "Python-style conanfile detected, parse manually" >> dependencies.txt
+            fi
+          done || echo "None found" >> dependencies.txt
 
           echo "" >> dependencies.txt
           echo "---- Include Statements ----" >> dependencies.txt
-          grep -r "^#include" . >> dependencies.txt || true
+          grep -r '^#include' . | sort | uniq >> dependencies.txt || echo "None found" >> dependencies.txt
 
           echo "" >> dependencies.txt
-          echo "---- vcpkg / manifests ----" >> dependencies.txt
-          find . -name "vcpkg.json" >> dependencies.txt || true
-          find . -name "conanfile.*" >> dependencies.txt || true
-
-          # Display dependencies in Actions UI
-          echo "---- DEPENDENCIES FOUND ----"
-          cat dependencies.txt
+          echo "---- Summary ----" >> dependencies.txt
+          echo "Total source files: $(find . -type f \( -name '*.c' -o -name '*.cpp' -o -name '*.h' \) | wc -l)" >> dependencies.txt
+          echo "Total includes: $(grep -r '^#include' . | wc -l)" >> dependencies.txt
 
       - name: Upload dependency list artifact
         uses: actions/upload-artifact@v4
