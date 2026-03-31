@@ -22,27 +22,56 @@ on:
     branches: [ "master" ]
 
 permissions:
-  # Require writing security events to upload SARIF file to security tab
   security-events: write
-  # Read commit contents
   contents: read
 
 jobs:
   scan-scheduled:
     if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78" # v1.7.1
-    with:
-      # Example of specifying custom arguments
-      scan-args: |-
-        -r
-        --skip-git
-        ./
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Generate file list
+        run: |
+          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) > scanned_files.txt
+
+      - name: Upload file list artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: scanned-files
+          path: scanned_files.txt
+
+      - name: Run OSV-Scanner
+        uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78"
+        with:
+          scan-args: |
+            -r
+            --skip-git
+            ./
+
   scan-pr:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78" # v1.7.1
-    with:
-      # Example of specifying custom arguments
-      scan-args: |-
-        -r
-        --skip-git
-        ./
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Generate file list
+        run: |
+          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) > scanned_files.txt
+
+      - name: Upload file list artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: scanned-files
+          path: scanned_files.txt
+
+      - name: Run OSV-Scanner (PR)
+        uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78"
+        with:
+          scan-args: |
+            -r
+            --skip-git
+            ./
