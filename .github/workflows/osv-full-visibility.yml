@@ -1,4 +1,5 @@
 # Jonas:  On 03/31/2026 built this to list out the OSV Scanner files and dependencies.
+
 name: OSV Scanner + Full Dependency Audit
 
 on:
@@ -18,9 +19,10 @@ jobs:
   # Job 1: COMPLETE FILE INVENTORY
   # ─────────────────────────────────────────────
   inventory:
+    name: "📋 File Inventory & Dependency Audit"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: "⬇️ Step 1: Download source code from repository"
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -29,7 +31,7 @@ jobs:
       # ─────────────────────────────────────────
       # SECTION A: ALL FILES IN REPOSITORY
       # ─────────────────────────────────────────
-      - name: "📁 Generate COMPLETE repository file list"
+      - name: "📁 Section A: List EVERY file in the repository"
         run: |
           echo "============================================================" > all_files.txt
           echo "  COMPLETE REPOSITORY FILE LIST" >> all_files.txt
@@ -40,7 +42,6 @@ jobs:
           echo "============================================================" >> all_files.txt
           echo "" >> all_files.txt
 
-          # Every single file in the repo
           echo "────────────────────────────────────────" >> all_files.txt
           echo "  ALL FILES (complete tree)" >> all_files.txt
           echo "────────────────────────────────────────" >> all_files.txt
@@ -54,7 +55,7 @@ jobs:
           echo "" 
           echo "📁 Total files in repository: $TOTAL_ALL"
 
-      - name: "📁 Upload complete file list"
+      - name: "📁 Section A — Upload: Complete file list artifact"
         uses: actions/upload-artifact@v4
         with:
           name: 01-all-repository-files
@@ -64,7 +65,7 @@ jobs:
       # ─────────────────────────────────────────
       # SECTION B: SOURCE CODE FILES BY TYPE
       # ─────────────────────────────────────────
-      - name: "📝 Generate SOURCE CODE file inventory"
+      - name: "📝 Section B: List SOURCE CODE files organized by type (.c .cpp .h .s)"
         run: |
           echo "============================================================" > source_files.txt
           echo "  SOURCE CODE FILE INVENTORY" >> source_files.txt
@@ -140,11 +141,14 @@ jobs:
           echo "  Count: $BUILD_COUNT" >> source_files.txt
           echo "" >> source_files.txt
 
-          # ── FreeRTOS Config ──
+          # ── OpenCV Config ──
           echo "────────────────────────────────────────" >> source_files.txt
-          echo "  FREERTOS CONFIGURATION FILES" >> source_files.txt
+          echo "  OPENCV CONFIGURATION FILES" >> source_files.txt
           echo "────────────────────────────────────────" >> source_files.txt
-          find . -not -path './.git/*' -type f -name "FreeRTOSConfig.h" | sort >> source_files.txt
+          find . -not -path './.git/*' -type f $ \
+            -name "OpenCVConfig.cmake" -o -name "opencv2/core.hpp" \
+            -o -name "cvconfig.h" -o -name "FreeRTOSConfig.h" \
+          $ | sort >> source_files.txt
           echo "" >> source_files.txt
 
           # ── Summary ──
@@ -164,7 +168,7 @@ jobs:
 
           cat source_files.txt
 
-      - name: "📝 Upload source code inventory"
+      - name: "📝 Section B — Upload: Source code inventory artifact"
         uses: actions/upload-artifact@v4
         with:
           name: 02-source-code-files
@@ -174,7 +178,7 @@ jobs:
       # ─────────────────────────────────────────
       # SECTION C: DEPENDENCY IDENTIFICATION
       # ─────────────────────────────────────────
-      - name: "🔗 Identify ALL dependencies"
+      - name: "🔗 Section C-1: Find Git Submodules (external repos linked to this project)"
         run: |
           echo "============================================================" > dependencies.txt
           echo "  DEPENDENCY IDENTIFICATION REPORT" >> dependencies.txt
@@ -185,9 +189,9 @@ jobs:
           echo "============================================================" >> dependencies.txt
           echo "" >> dependencies.txt
 
-          # ── 1. Git Submodules ──
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  1. GIT SUBMODULES" >> dependencies.txt
+          echo "     (External repos pulled into this project)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           if [ -f ".gitmodules" ]; then
             echo "  .gitmodules found:" >> dependencies.txt
@@ -201,12 +205,16 @@ jobs:
           fi
           echo "" >> dependencies.txt
 
-          # ── 2. FreeRTOS Components ──
+          cat dependencies.txt
+
+      - name: "🔗 Section C-2: Detect FreeRTOS / OpenCV components in the repo"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
-          echo "  2. FREERTOS COMPONENTS DETECTED" >> dependencies.txt
+          echo "  2. KNOWN COMPONENTS DETECTED" >> dependencies.txt
+          echo "     (Searching for recognized libraries)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
 
-          # Kernel
+          # FreeRTOS Kernel
           KERNEL=$(find . -not -path './.git/*' -name "tasks.c" -path "*/FreeRTOS*" -print -quit)
           if [ -n "$KERNEL" ]; then
             echo "  ✅ FreeRTOS Kernel: FOUND" >> dependencies.txt
@@ -219,8 +227,8 @@ jobs:
             echo "  ❌ FreeRTOS Kernel: NOT FOUND" >> dependencies.txt
           fi
 
-          # FreeRTOS Libraries
-          FREERTOS_LIBS=(
+          # Known libraries
+          KNOWN_LIBS=(
             "coreMQTT:MQTT Client"
             "coreHTTP:HTTP Client"
             "coreJSON:JSON Parser"
@@ -233,8 +241,15 @@ jobs:
             "mbedtls:TLS/Crypto Library"
             "lwIP:Lightweight IP Stack"
             "tinycbor:CBOR Parser"
+            "opencv:Computer Vision Library"
+            "zlib:Compression Library"
+            "libjpeg:JPEG Image Library"
+            "libpng:PNG Image Library"
+            "libtiff:TIFF Image Library"
+            "protobuf:Protocol Buffers"
+            "eigen:Linear Algebra Library"
           )
-          for entry in "${FREERTOS_LIBS[@]}"; do
+          for entry in "${KNOWN_LIBS[@]}"; do
             LIB_NAME="${entry%%:*}"
             LIB_DESC="${entry##*:}"
             if find . -not -path './.git/*' -type d -iname "$LIB_NAME" | grep -q .; then
@@ -244,13 +259,18 @@ jobs:
           done
           echo "" >> dependencies.txt
 
-          # ── 3. ALL #include Statements (Unique, Sorted) ──
+          cat dependencies.txt
+
+      - name: "🔗 Section C-3: Find all #include statements (what libraries your code uses)"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  3. ALL UNIQUE #include STATEMENTS" >> dependencies.txt
+          echo "     (Every library/header your code references)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "" >> dependencies.txt
 
-          echo "  --- System/Standard Library Includes ---" >> dependencies.txt
+          echo "  --- System/Standard Library Includes <...> ---" >> dependencies.txt
+          echo "  (External libraries installed on the system)" >> dependencies.txt
           grep -rh "^#include\s*<" --include="*.c" --include="*.cpp" \
             --include="*.h" --include="*.hpp" . 2>/dev/null | \
             sed 's/^[[:space:]]*//' | sort -u >> dependencies.txt || true
@@ -259,7 +279,8 @@ jobs:
           echo "  Count: $SYS_COUNT unique system includes" >> dependencies.txt
           echo "" >> dependencies.txt
 
-          echo "  --- Project/Local Includes ---" >> dependencies.txt
+          echo '  --- Project/Local Includes "..." ---' >> dependencies.txt
+          echo "  (Files within this project)" >> dependencies.txt
           grep -rh '^#include\s*"' --include="*.c" --include="*.cpp" \
             --include="*.h" --include="*.hpp" . 2>/dev/null | \
             sed 's/^[[:space:]]*//' | sort -u >> dependencies.txt || true
@@ -268,45 +289,55 @@ jobs:
           echo "  Count: $LOCAL_COUNT unique local includes" >> dependencies.txt
           echo "" >> dependencies.txt
 
-          # ── 4. Include with File Location ──
+      - name: "🔗 Section C-4: Map each #include to its source file (who depends on what)"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  4. INCLUDE STATEMENTS WITH SOURCE FILE" >> dependencies.txt
-          echo "     (Which file includes what)" >> dependencies.txt
+          echo "     (Shows: file.c:line:#include <library>)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           grep -rn "^#include" --include="*.c" --include="*.cpp" \
             --include="*.h" --include="*.hpp" . 2>/dev/null | \
             sort >> dependencies.txt || true
           echo "" >> dependencies.txt
 
-          # ── 5. CMake Dependencies ──
+      - name: "🔗 Section C-5: Find CMake build dependencies (find_package, FetchContent, etc.)"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  5. CMAKE DEPENDENCIES" >> dependencies.txt
+          echo "     (External libraries pulled in by the build system)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "" >> dependencies.txt
-          echo "  find_package():" >> dependencies.txt
+
+          echo "  find_package() — Libraries CMake searches for:" >> dependencies.txt
           grep -rn "find_package" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | \
             sort >> dependencies.txt || echo "  (none found)" >> dependencies.txt
           echo "" >> dependencies.txt
-          echo "  FetchContent_Declare():" >> dependencies.txt
+
+          echo "  FetchContent_Declare() — Libraries downloaded during build:" >> dependencies.txt
           grep -rn "FetchContent_Declare" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | \
             sort >> dependencies.txt || echo "  (none found)" >> dependencies.txt
           echo "" >> dependencies.txt
-          echo "  ExternalProject_Add():" >> dependencies.txt
+
+          echo "  ExternalProject_Add() — External projects built alongside:" >> dependencies.txt
           grep -rn "ExternalProject_Add" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | \
             sort >> dependencies.txt || echo "  (none found)" >> dependencies.txt
           echo "" >> dependencies.txt
-          echo "  add_subdirectory():" >> dependencies.txt
+
+          echo "  add_subdirectory() — Subdirectories included in the build:" >> dependencies.txt
           grep -rn "add_subdirectory" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | \
             sort >> dependencies.txt || echo "  (none found)" >> dependencies.txt
           echo "" >> dependencies.txt
-          echo "  target_link_libraries():" >> dependencies.txt
+
+          echo "  target_link_libraries() — Libraries linked to executables:" >> dependencies.txt
           grep -rn "target_link_libraries" --include="CMakeLists.txt" --include="*.cmake" . 2>/dev/null | \
             sort >> dependencies.txt || echo "  (none found)" >> dependencies.txt
           echo "" >> dependencies.txt
 
-          # ── 6. Package Manager Files ──
+      - name: "🔗 Section C-6: Check for package manager files (vcpkg, conan, pip, etc.)"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  6. PACKAGE MANAGER FILES" >> dependencies.txt
+          echo "     (Files that list installable dependencies)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           MANIFESTS=("vcpkg.json" "conanfile.txt" "conanfile.py" \
                      "manifest.yml" "sbom.json" "package.json" \
@@ -327,9 +358,11 @@ jobs:
           done
           echo "" >> dependencies.txt
 
-          # ── 7. Hardware / BSP / SDK ──
+      - name: "🔗 Section C-7: Find hardware/BSP/SDK folders (board support packages)"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  7. HARDWARE / BSP / SDK COMPONENTS" >> dependencies.txt
+          echo "     (Board support packages and hardware drivers)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           HW_DIRS=("BSP" "HAL" "CMSIS" "Drivers" "SDK" "board" "platform")
           for dir in "${HW_DIRS[@]}"; do
@@ -341,18 +374,19 @@ jobs:
           done
           echo "" >> dependencies.txt
 
-          # ── 8. Vendor / Third-Party Directories ──
+      - name: "🔗 Section C-8: Find vendor/third-party folders (external code bundled in repo)"
+        run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  8. VENDOR / THIRD-PARTY DIRECTORIES" >> dependencies.txt
+          echo "     (External code bundled inside this repository)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           VENDOR_DIRS=("vendor" "third_party" "third-party" "thirdparty" \
-                       "external" "extern" "deps" "lib" "libs")
+                       "external" "extern" "deps" "lib" "libs" "3rdparty")
           for dir in "${VENDOR_DIRS[@]}"; do
             FOUND=$(find . -not -path './.git/*' -maxdepth 2 -type d -iname "$dir" 2>/dev/null)
             if [ -n "$FOUND" ]; then
               echo "  ✅ $dir:" >> dependencies.txt
               echo "$FOUND" | sed 's/^/     /' >> dependencies.txt
-              # List contents one level deep
               echo "     Contents:" >> dependencies.txt
               for d in $FOUND; do
                 ls -1 "$d" 2>/dev/null | sed 's/^/       /' >> dependencies.txt
@@ -362,6 +396,10 @@ jobs:
           echo "" >> dependencies.txt
 
           # ── SUMMARY ──
+          SYS_COUNT=$(grep -rh "^#include\s*<" --include="*.c" --include="*.cpp" \
+            --include="*.h" --include="*.hpp" . 2>/dev/null | sort -u | wc -l)
+          LOCAL_COUNT=$(grep -rh '^#include\s*"' --include="*.c" --include="*.cpp" \
+            --include="*.h" --include="*.hpp" . 2>/dev/null | sort -u | wc -l)
           echo "============================================================" >> dependencies.txt
           echo "  DEPENDENCY SUMMARY" >> dependencies.txt
           echo "============================================================" >> dependencies.txt
@@ -373,7 +411,7 @@ jobs:
 
           cat dependencies.txt
 
-      - name: "🔗 Upload dependency report"
+      - name: "🔗 Section C — Upload: Dependency report artifact"
         uses: actions/upload-artifact@v4
         with:
           name: 03-dependency-report
@@ -383,7 +421,7 @@ jobs:
       # ─────────────────────────────────────────
       # SECTION D: COMBINED SUMMARY REPORT
       # ─────────────────────────────────────────
-      - name: "📊 Generate combined summary report"
+      - name: "📊 Section D: Generate one-page summary dashboard"
         run: |
           echo "============================================================" > summary_report.txt
           echo "  SECURITY AUDIT SUMMARY REPORT" >> summary_report.txt
@@ -414,12 +452,11 @@ jobs:
           echo "  02-source-code-files      — Source code organized by type" >> summary_report.txt
           echo "  03-dependency-report      — All dependencies identified" >> summary_report.txt
           echo "  04-summary-report         — This summary" >> summary_report.txt
-          echo "  05-osv-scan-results       — Vulnerability scan results" >> summary_report.txt
           echo "============================================================" >> summary_report.txt
 
           cat summary_report.txt
 
-      - name: "📊 Upload summary report"
+      - name: "📊 Section D — Upload: Summary report artifact"
         uses: actions/upload-artifact@v4
         with:
           name: 04-summary-report
@@ -430,6 +467,7 @@ jobs:
   # Job 2: OSV Vulnerability Scan
   # ─────────────────────────────────────────────
   scan-osv:
+    name: "🛡️ OSV Vulnerability Scanner"
     needs: inventory
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
     with:
