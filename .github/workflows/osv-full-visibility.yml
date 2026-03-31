@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master" ]
   schedule:
-    - cron: '43 22 * * 6' # Runs weekly on Saturday at 22:43 UTC
+    - cron: '43 22 * * 6' # Weekly on Saturday at 22:43 UTC
 
 permissions:
   security-events: write
@@ -16,7 +16,7 @@ jobs:
   inventory:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       # -------- FILE LIST --------
@@ -27,7 +27,11 @@ jobs:
           echo "" >> scanned_files.txt
           echo "Total files: $(wc -l < scanned_files.txt)" >> scanned_files.txt
 
-      - name: Upload file list
+          # Display files in Actions UI
+          echo "---- FILES SCANNED ----"
+          cat scanned_files.txt
+
+      - name: Upload file list artifact
         uses: actions/upload-artifact@v4
         with:
           name: scanned-files
@@ -51,7 +55,11 @@ jobs:
           find . -name "vcpkg.json" >> dependencies.txt || true
           find . -name "conanfile.*" >> dependencies.txt || true
 
-      - name: Upload dependency list
+          # Display dependencies in Actions UI
+          echo "---- DEPENDENCIES FOUND ----"
+          cat dependencies.txt
+
+      - name: Upload dependency list artifact
         uses: actions/upload-artifact@v4
         with:
           name: detected-dependencies
