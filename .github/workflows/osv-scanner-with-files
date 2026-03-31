@@ -1,0 +1,47 @@
+name: OpenCV OSV Scanner + File List
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    - cron: '36 22 * * 5'
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  generate-file-list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Generate list of C/C++ files
+        run: |
+          echo "C/C++/Header files in repo:" > scanned_files.txt
+          find . -type f \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) >> scanned_files.txt
+          echo "Total files found: $(wc -l < scanned_files.txt)" >> scanned_files.txt
+
+      - name: Upload scanned files artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: scanned-files
+          path: scanned_files.txt
+
+  scan-osv:
+    needs: generate-file-list
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78
+        with:
+          scan-args: |
+            -r
+            --skip-git
+            ./
