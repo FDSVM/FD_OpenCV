@@ -1,4 +1,4 @@
-# Jonas:  On 03/31/2026 built this to list out the OSV Scanner files and dependencies.
+# Jonas: On 03/31/2026 built this to list out the OSV Scanner files and dependencies.
 
 name: OSV Scanner + Full Dependency Audit
 
@@ -52,7 +52,7 @@ jobs:
           echo "" >> all_files.txt
 
           cat all_files.txt
-          echo "" 
+          echo ""
           echo "📁 Total files in repository: $TOTAL_ALL"
 
       - name: "📁 Section A — Upload: Complete file list artifact"
@@ -65,7 +65,7 @@ jobs:
       # ─────────────────────────────────────────
       # SECTION B: SOURCE CODE FILES BY TYPE
       # ─────────────────────────────────────────
-      - name: "📝 Section B: List SOURCE CODE files organized by type (.c .cpp .h .s)"
+      - name: "📝 Section B: List SOURCE CODE files organized by type (.c .cpp .h .py .java)"
         run: |
           echo "============================================================" > source_files.txt
           echo "  SOURCE CODE FILE INVENTORY" >> source_files.txt
@@ -103,6 +103,36 @@ jobs:
           echo "  Count: $H_COUNT" >> source_files.txt
           echo "" >> source_files.txt
 
+          # ── Python Files (OpenCV Python bindings) ──
+          echo "────────────────────────────────────────" >> source_files.txt
+          echo "  PYTHON FILES (.py)" >> source_files.txt
+          echo "  (OpenCV Python bindings, build scripts, tests)" >> source_files.txt
+          echo "────────────────────────────────────────" >> source_files.txt
+          find . -not -path './.git/*' -type f -name "*.py" | sort >> source_files.txt
+          PY_COUNT=$(find . -not -path './.git/*' -type f -name "*.py" | wc -l)
+          echo "  Count: $PY_COUNT" >> source_files.txt
+          echo "" >> source_files.txt
+
+          # ── Java Files (OpenCV Java bindings) ──
+          echo "────────────────────────────────────────" >> source_files.txt
+          echo "  JAVA FILES (.java)" >> source_files.txt
+          echo "  (OpenCV Java/Android bindings)" >> source_files.txt
+          echo "────────────────────────────────────────" >> source_files.txt
+          find . -not -path './.git/*' -type f -name "*.java" | sort >> source_files.txt
+          JAVA_COUNT=$(find . -not -path './.git/*' -type f -name "*.java" | wc -l)
+          echo "  Count: $JAVA_COUNT" >> source_files.txt
+          echo "" >> source_files.txt
+
+          # ── CUDA / GPU Files ──
+          echo "────────────────────────────────────────" >> source_files.txt
+          echo "  CUDA / GPU FILES (.cu / .cl)" >> source_files.txt
+          echo "  (GPU-accelerated OpenCV modules)" >> source_files.txt
+          echo "────────────────────────────────────────" >> source_files.txt
+          find . -not -path './.git/*' -type f $ -name "*.cu" -o -name "*.cl" -o -name "*.cuh" $ | sort >> source_files.txt
+          GPU_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.cu" -o -name "*.cl" -o -name "*.cuh" $ | wc -l)
+          echo "  Count: $GPU_COUNT" >> source_files.txt
+          echo "" >> source_files.txt
+
           # ── Assembly Files ──
           echo "────────────────────────────────────────" >> source_files.txt
           echo "  ASSEMBLY FILES (.s / .S / .asm)" >> source_files.txt
@@ -112,25 +142,16 @@ jobs:
           echo "  Count: $ASM_COUNT" >> source_files.txt
           echo "" >> source_files.txt
 
-          # ── Linker Scripts ──
-          echo "────────────────────────────────────────" >> source_files.txt
-          echo "  LINKER SCRIPTS (.ld / .icf)" >> source_files.txt
-          echo "────────────────────────────────────────" >> source_files.txt
-          find . -not -path './.git/*' -type f $ -name "*.ld" -o -name "*.icf" $ | sort >> source_files.txt
-          LD_COUNT=$(find . -not -path './.git/*' -type f $ -name "*.ld" -o -name "*.icf" $ | wc -l)
-          echo "  Count: $LD_COUNT" >> source_files.txt
-          echo "" >> source_files.txt
-
           # ── Build / Config Files ──
           echo "────────────────────────────────────────" >> source_files.txt
           echo "  BUILD & CONFIG FILES" >> source_files.txt
+          echo "  (CMake, Makefiles, project configs)" >> source_files.txt
           echo "────────────────────────────────────────" >> source_files.txt
           find . -not -path './.git/*' -type f $ \
             -name "CMakeLists.txt" -o -name "*.cmake" \
             -o -name "Makefile" -o -name "*.mk" \
             -o -name "*.json" -o -name "*.yml" -o -name "*.yaml" \
             -o -name "*.cfg" -o -name "*.conf" -o -name "*.ini" \
-            -o -name "*.ld" -o -name "*.icf" \
             -o -name "*.sln" -o -name "*.vcxproj" \
           $ | sort >> source_files.txt
           BUILD_COUNT=$(find . -not -path './.git/*' -type f $ \
@@ -141,26 +162,29 @@ jobs:
           echo "  Count: $BUILD_COUNT" >> source_files.txt
           echo "" >> source_files.txt
 
-          # ── OpenCV Config ──
+          # ── OpenCV Config Files ──
           echo "────────────────────────────────────────" >> source_files.txt
           echo "  OPENCV CONFIGURATION FILES" >> source_files.txt
           echo "────────────────────────────────────────" >> source_files.txt
           find . -not -path './.git/*' -type f $ \
-            -name "OpenCVConfig.cmake" -o -name "opencv2/core.hpp" \
-            -o -name "cvconfig.h" -o -name "FreeRTOSConfig.h" \
+            -name "OpenCVConfig.cmake" -o -name "OpenCVConfig-version.cmake" \
+            -o -name "cvconfig.h" -o -name "cvconfig.h.in" \
+            -o -name "opencv_modules.hpp" \
           $ | sort >> source_files.txt
           echo "" >> source_files.txt
 
           # ── Summary ──
-          TOTAL=$((C_COUNT + CPP_COUNT + H_COUNT + ASM_COUNT))
+          TOTAL=$((C_COUNT + CPP_COUNT + H_COUNT + PY_COUNT + JAVA_COUNT + GPU_COUNT + ASM_COUNT))
           echo "============================================================" >> source_files.txt
           echo "  SUMMARY" >> source_files.txt
           echo "============================================================" >> source_files.txt
           echo "  C Source Files:      $C_COUNT" >> source_files.txt
           echo "  C++ Source Files:    $CPP_COUNT" >> source_files.txt
           echo "  Header Files:        $H_COUNT" >> source_files.txt
+          echo "  Python Files:        $PY_COUNT" >> source_files.txt
+          echo "  Java Files:          $JAVA_COUNT" >> source_files.txt
+          echo "  CUDA/GPU Files:      $GPU_COUNT" >> source_files.txt
           echo "  Assembly Files:      $ASM_COUNT" >> source_files.txt
-          echo "  Linker Scripts:      $LD_COUNT" >> source_files.txt
           echo "  Build/Config Files:  $BUILD_COUNT" >> source_files.txt
           echo "  ──────────────────────────────" >> source_files.txt
           echo "  TOTAL SOURCE FILES:  $TOTAL" >> source_files.txt
@@ -207,52 +231,126 @@ jobs:
 
           cat dependencies.txt
 
-      - name: "🔗 Section C-2: Detect FreeRTOS / OpenCV components in the repo"
+      - name: "🔗 Section C-2: Detect OpenCV modules and known libraries in the repo"
         run: |
           echo "────────────────────────────────────────" >> dependencies.txt
-          echo "  2. KNOWN COMPONENTS DETECTED" >> dependencies.txt
-          echo "     (Searching for recognized libraries)" >> dependencies.txt
+          echo "  2. OPENCV MODULES DETECTED" >> dependencies.txt
+          echo "     (Core OpenCV modules found in this repository)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
 
-          # FreeRTOS Kernel
-          KERNEL=$(find . -not -path './.git/*' -name "tasks.c" -path "*/FreeRTOS*" -print -quit)
-          if [ -n "$KERNEL" ]; then
-            echo "  ✅ FreeRTOS Kernel: FOUND" >> dependencies.txt
-            VERSION_FILE=$(find . -not -path './.git/*' -name "task.h" -print -quit)
-            if [ -n "$VERSION_FILE" ]; then
-              echo "     Version info:" >> dependencies.txt
-              grep -E "tskKERNEL_VERSION_" "$VERSION_FILE" | head -5 >> dependencies.txt || true
+          # OpenCV Core Modules
+          echo "" >> dependencies.txt
+          echo "  --- Core Modules ---" >> dependencies.txt
+          CORE_MODULES=("core" "imgproc" "imgcodecs" "videoio" "highgui" \
+                        "video" "calib3d" "features2d" "objdetect" \
+                        "dnn" "ml" "flann" "photo" "stitching" "gapi")
+          for mod in "${CORE_MODULES[@]}"; do
+            if find . -not -path './.git/*' -type d -name "$mod" -path "*/modules/*" | grep -q .; then
+              MOD_PATH=$(find . -not -path './.git/*' -type d -name "$mod" -path "*/modules/*" -print -quit)
+              echo "  ✅ opencv_$mod: $MOD_PATH" >> dependencies.txt
+            elif find . -not -path './.git/*' -type d -name "$mod" | grep -q .; then
+              MOD_PATH=$(find . -not -path './.git/*' -type d -name "$mod" -print -quit)
+              echo "  ✅ opencv_$mod: $MOD_PATH" >> dependencies.txt
             fi
-          else
-            echo "  ❌ FreeRTOS Kernel: NOT FOUND" >> dependencies.txt
+          done
+
+          # OpenCV Contrib/Extra Modules
+          echo "" >> dependencies.txt
+          echo "  --- Contrib / Extra Modules ---" >> dependencies.txt
+          CONTRIB_MODULES=("aruco" "bgsegm" "bioinspired" "ccalib" \
+                           "cudaarithm" "cudabgsegm" "cudacodec" "cudafeatures2d" \
+                           "cudafilters" "cudaimgproc" "cudalegacy" "cudaobjdetect" \
+                           "cudaoptflow" "cudastereo" "cudawarping" "cudev" \
+                           "datasets" "dnn_objdetect" "dnn_superres" "dpm" \
+                           "face" "freetype" "fuzzy" "hdf" "hfs" \
+                           "img_hash" "line_descriptor" "mcc" "optflow" \
+                           "phase_unwrapping" "plot" "quality" "rapid" \
+                           "reg" "rgbd" "saliency" "sfm" "shape" \
+                           "stereo" "structured_light" "superres" \
+                           "surface_matching" "text" "tracking" \
+                           "videostab" "viz" "wechat_qrcode" "xfeatures2d" \
+                           "ximgproc" "xobjdetect" "xphoto")
+          CONTRIB_FOUND=0
+          for mod in "${CONTRIB_MODULES[@]}"; do
+            if find . -not -path './.git/*' -type d -name "$mod" | grep -q .; then
+              MOD_PATH=$(find . -not -path './.git/*' -type d -name "$mod" -print -quit)
+              echo "  ✅ opencv_$mod: $MOD_PATH" >> dependencies.txt
+              CONTRIB_FOUND=$((CONTRIB_FOUND + 1))
+            fi
+          done
+          if [ "$CONTRIB_FOUND" -eq 0 ]; then
+            echo "  (no contrib modules found)" >> dependencies.txt
           fi
 
-          # Known libraries
+          # OpenCV Version Detection
+          echo "" >> dependencies.txt
+          echo "  --- OpenCV Version ---" >> dependencies.txt
+          VERSION_FILE=$(find . -not -path './.git/*' -name "version.hpp" -path "*/opencv2/*" -print -quit)
+          if [ -n "$VERSION_FILE" ]; then
+            echo "  Version file: $VERSION_FILE" >> dependencies.txt
+            grep -E "CV_VERSION_" "$VERSION_FILE" | head -5 >> dependencies.txt || true
+          else
+            VERSION_CMAKE=$(find . -not -path './.git/*' -name "OpenCVConfig-version.cmake" -print -quit)
+            if [ -n "$VERSION_CMAKE" ]; then
+              echo "  Version file: $VERSION_CMAKE" >> dependencies.txt
+              grep -E "OpenCV_VERSION" "$VERSION_CMAKE" | head -3 >> dependencies.txt || true
+            else
+              echo "  (version file not found)" >> dependencies.txt
+            fi
+          fi
+          echo "" >> dependencies.txt
+
+          # OpenCV 3rdparty / Bundled Libraries
+          echo "────────────────────────────────────────" >> dependencies.txt
+          echo "  2b. OPENCV BUNDLED THIRD-PARTY LIBRARIES" >> dependencies.txt
+          echo "      (Libraries shipped inside OpenCV's 3rdparty folder)" >> dependencies.txt
+          echo "────────────────────────────────────────" >> dependencies.txt
+          THIRDPARTY_DIR=$(find . -not -path './.git/*' -maxdepth 2 -type d -name "3rdparty" -print -quit)
+          if [ -n "$THIRDPARTY_DIR" ]; then
+            echo "  3rdparty directory: $THIRDPARTY_DIR" >> dependencies.txt
+            echo "  Contents:" >> dependencies.txt
+            ls -1 "$THIRDPARTY_DIR" | while read -r lib; do
+              echo "  ✅ $lib" >> dependencies.txt
+            done
+          else
+            echo "  (no 3rdparty directory found)" >> dependencies.txt
+          fi
+          echo "" >> dependencies.txt
+
+          # Known third-party libraries used by OpenCV
+          echo "────────────────────────────────────────" >> dependencies.txt
+          echo "  2c. KNOWN EXTERNAL LIBRARIES DETECTED" >> dependencies.txt
+          echo "      (Common libraries OpenCV depends on)" >> dependencies.txt
+          echo "────────────────────────────────────────" >> dependencies.txt
           KNOWN_LIBS=(
-            "coreMQTT:MQTT Client"
-            "coreHTTP:HTTP Client"
-            "coreJSON:JSON Parser"
-            "corePKCS11:PKCS#11 Crypto"
-            "coreSNTP:SNTP Client"
-            "FreeRTOS-Plus-TCP:TCP/IP Stack"
-            "FreeRTOS-Plus-CLI:Command Line Interface"
-            "backoffAlgorithm:Retry Algorithm"
-            "aws-iot-device-sdk:AWS IoT SDK"
-            "mbedtls:TLS/Crypto Library"
-            "lwIP:Lightweight IP Stack"
-            "tinycbor:CBOR Parser"
-            "opencv:Computer Vision Library"
             "zlib:Compression Library"
-            "libjpeg:JPEG Image Library"
-            "libpng:PNG Image Library"
-            "libtiff:TIFF Image Library"
-            "protobuf:Protocol Buffers"
+            "libjpeg:JPEG Image Codec"
+            "libpng:PNG Image Codec"
+            "libtiff:TIFF Image Codec"
+            "libwebp:WebP Image Codec"
+            "openjpeg:JPEG 2000 Codec"
+            "openexr:HDR Image Format"
+            "jasper:JPEG 2000 Library"
+            "protobuf:Protocol Buffers (DNN)"
             "eigen:Linear Algebra Library"
+            "lapack:Linear Algebra Package"
+            "openblas:BLAS Library"
+            "tbb:Intel Threading Building Blocks"
+            "ipp:Intel Performance Primitives"
+            "ffmpeg:Video Codec Library"
+            "gstreamer:Multimedia Framework"
+            "gtk:GUI Toolkit"
+            "qt:Qt GUI Framework"
+            "tesseract:OCR Engine"
+            "onnx:ONNX Runtime (DNN)"
+            "flatbuffers:Serialization Library"
+            "quirc:QR Code Decoder"
+            "ade:Graph Framework"
           )
           for entry in "${KNOWN_LIBS[@]}"; do
             LIB_NAME="${entry%%:*}"
             LIB_DESC="${entry##*:}"
-            if find . -not -path './.git/*' -type d -iname "$LIB_NAME" | grep -q .; then
+            if find . -not -path './.git/*' -type d -iname "$LIB_NAME" 2>/dev/null | grep -q .; then
               LIB_PATH=$(find . -not -path './.git/*' -type d -iname "$LIB_NAME" -print -quit)
               echo "  ✅ $LIB_NAME ($LIB_DESC): $LIB_PATH" >> dependencies.txt
             fi
@@ -293,7 +391,7 @@ jobs:
         run: |
           echo "────────────────────────────────────────" >> dependencies.txt
           echo "  4. INCLUDE STATEMENTS WITH SOURCE FILE" >> dependencies.txt
-          echo "     (Shows: file.c:line:#include <library>)" >> dependencies.txt
+          echo "     (Shows: file.cpp:line:#include <opencv2>)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
           grep -rn "^#include" --include="*.c" --include="*.cpp" \
             --include="*.h" --include="*.hpp" . 2>/dev/null | \
@@ -341,7 +439,9 @@ jobs:
           echo "────────────────────────────────────────" >> dependencies.txt
           MANIFESTS=("vcpkg.json" "conanfile.txt" "conanfile.py" \
                      "manifest.yml" "sbom.json" "package.json" \
-                     "requirements.txt" "Pipfile" "Cargo.toml")
+                     "requirements.txt" "setup.py" "setup.cfg" \
+                     "pyproject.toml" "Pipfile" "Cargo.toml" \
+                     "build.gradle" "pom.xml")
           for manifest in "${MANIFESTS[@]}"; do
             FOUND=$(find . -not -path './.git/*' -name "$manifest" -type f 2>/dev/null)
             if [ -n "$FOUND" ]; then
@@ -349,7 +449,8 @@ jobs:
               echo "$FOUND" | while read -r f; do
                 echo "     $f" >> dependencies.txt
                 echo "     Contents:" >> dependencies.txt
-                cat "$f" | sed 's/^/       /' >> dependencies.txt
+                head -50 "$f" | sed 's/^/       /' >> dependencies.txt
+                echo "       ... (first 50 lines shown)" >> dependencies.txt
                 echo "" >> dependencies.txt
               done
             else
@@ -358,30 +459,14 @@ jobs:
           done
           echo "" >> dependencies.txt
 
-      - name: "🔗 Section C-7: Find hardware/BSP/SDK folders (board support packages)"
+      - name: "🔗 Section C-7: Find OpenCV third-party and vendor directories"
         run: |
           echo "────────────────────────────────────────" >> dependencies.txt
-          echo "  7. HARDWARE / BSP / SDK COMPONENTS" >> dependencies.txt
-          echo "     (Board support packages and hardware drivers)" >> dependencies.txt
-          echo "────────────────────────────────────────" >> dependencies.txt
-          HW_DIRS=("BSP" "HAL" "CMSIS" "Drivers" "SDK" "board" "platform")
-          for dir in "${HW_DIRS[@]}"; do
-            FOUND=$(find . -not -path './.git/*' -type d -iname "$dir" 2>/dev/null)
-            if [ -n "$FOUND" ]; then
-              echo "  ✅ $dir:" >> dependencies.txt
-              echo "$FOUND" | sed 's/^/     /' >> dependencies.txt
-            fi
-          done
-          echo "" >> dependencies.txt
-
-      - name: "🔗 Section C-8: Find vendor/third-party folders (external code bundled in repo)"
-        run: |
-          echo "────────────────────────────────────────" >> dependencies.txt
-          echo "  8. VENDOR / THIRD-PARTY DIRECTORIES" >> dependencies.txt
+          echo "  7. VENDOR / THIRD-PARTY DIRECTORIES" >> dependencies.txt
           echo "     (External code bundled inside this repository)" >> dependencies.txt
           echo "────────────────────────────────────────" >> dependencies.txt
-          VENDOR_DIRS=("vendor" "third_party" "third-party" "thirdparty" \
-                       "external" "extern" "deps" "lib" "libs" "3rdparty")
+          VENDOR_DIRS=("3rdparty" "vendor" "third_party" "third-party" \
+                       "thirdparty" "external" "extern" "deps" "contrib")
           for dir in "${VENDOR_DIRS[@]}"; do
             FOUND=$(find . -not -path './.git/*' -maxdepth 2 -type d -iname "$dir" 2>/dev/null)
             if [ -n "$FOUND" ]; then
@@ -391,11 +476,35 @@ jobs:
               for d in $FOUND; do
                 ls -1 "$d" 2>/dev/null | sed 's/^/       /' >> dependencies.txt
               done
+              echo "" >> dependencies.txt
             fi
           done
           echo "" >> dependencies.txt
 
-          # ── SUMMARY ──
+      - name: "🔗 Section C-8: Detect Python dependencies (OpenCV Python bindings)"
+        run: |
+          echo "────────────────────────────────────────" >> dependencies.txt
+          echo "  8. PYTHON DEPENDENCIES" >> dependencies.txt
+          echo "     (Python imports used in scripts and bindings)" >> dependencies.txt
+          echo "────────────────────────────────────────" >> dependencies.txt
+          echo "" >> dependencies.txt
+
+          echo "  --- Python import statements (unique) ---" >> dependencies.txt
+          grep -rh "^import \|^from " --include="*.py" . 2>/dev/null | \
+            sed 's/^[[:space:]]*//' | sort -u >> dependencies.txt || true
+          PY_IMPORT_COUNT=$(grep -rh "^import \|^from " --include="*.py" . 2>/dev/null | sort -u | wc -l)
+          echo "  Count: $PY_IMPORT_COUNT unique Python imports" >> dependencies.txt
+          echo "" >> dependencies.txt
+
+          echo "  --- requirements.txt files ---" >> dependencies.txt
+          find . -not -path './.git/*' -name "requirements*.txt" -type f 2>/dev/null | while read -r f; do
+            echo "  ✅ $f:" >> dependencies.txt
+            cat "$f" | sed 's/^/       /' >> dependencies.txt
+            echo "" >> dependencies.txt
+          done
+          echo "" >> dependencies.txt
+
+          # ── DEPENDENCY SUMMARY ──
           SYS_COUNT=$(grep -rh "^#include\s*<" --include="*.c" --include="*.cpp" \
             --include="*.h" --include="*.hpp" . 2>/dev/null | sort -u | wc -l)
           LOCAL_COUNT=$(grep -rh '^#include\s*"' --include="*.c" --include="*.cpp" \
@@ -403,10 +512,11 @@ jobs:
           echo "============================================================" >> dependencies.txt
           echo "  DEPENDENCY SUMMARY" >> dependencies.txt
           echo "============================================================" >> dependencies.txt
-          echo "  Unique system includes:  $SYS_COUNT" >> dependencies.txt
-          echo "  Unique local includes:   $LOCAL_COUNT" >> dependencies.txt
+          echo "  Unique C/C++ system includes:  $SYS_COUNT" >> dependencies.txt
+          echo "  Unique C/C++ local includes:   $LOCAL_COUNT" >> dependencies.txt
+          echo "  Unique Python imports:          $PY_IMPORT_COUNT" >> dependencies.txt
           SUBMOD_COUNT=$(git submodule status 2>/dev/null | wc -l || echo 0)
-          echo "  Git submodules:          $SUBMOD_COUNT" >> dependencies.txt
+          echo "  Git submodules:                $SUBMOD_COUNT" >> dependencies.txt
           echo "============================================================" >> dependencies.txt
 
           cat dependencies.txt
@@ -440,9 +550,11 @@ jobs:
           echo "  C files (.c):        $(find . -not -path './.git/*' -type f -name '*.c' | wc -l)" >> summary_report.txt
           echo "  C++ files:           $(find . -not -path './.git/*' -type f $ -name '*.cpp' -o -name '*.cc' $ | wc -l)" >> summary_report.txt
           echo "  Headers (.h/.hpp):   $(find . -not -path './.git/*' -type f $ -name '*.h' -o -name '*.hpp' $ | wc -l)" >> summary_report.txt
+          echo "  Python files (.py):  $(find . -not -path './.git/*' -type f -name '*.py' | wc -l)" >> summary_report.txt
+          echo "  Java files (.java):  $(find . -not -path './.git/*' -type f -name '*.java' | wc -l)" >> summary_report.txt
+          echo "  CUDA/GPU files:      $(find . -not -path './.git/*' -type f $ -name '*.cu' -o -name '*.cl' $ | wc -l)" >> summary_report.txt
           echo "  Assembly files:      $(find . -not -path './.git/*' -type f $ -name '*.s' -o -name '*.S' -o -name '*.asm' $ | wc -l)" >> summary_report.txt
           echo "  CMake files:         $(find . -not -path './.git/*' -type f $ -name 'CMakeLists.txt' -o -name '*.cmake' $ | wc -l)" >> summary_report.txt
-          echo "  Makefiles:           $(find . -not -path './.git/*' -type f $ -name 'Makefile' -o -name '*.mk' $ | wc -l)" >> summary_report.txt
           echo "  Git submodules:      $(git submodule status 2>/dev/null | wc -l || echo 0)" >> summary_report.txt
           echo "" >> summary_report.txt
 
