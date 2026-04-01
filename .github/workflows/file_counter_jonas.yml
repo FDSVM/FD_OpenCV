@@ -94,28 +94,60 @@ jobs:
           path: all_files.txt
           retention-days: 90
 
-      # ─────────────────────────────────────────
-      # SECTION B: SOURCE CODE FILES BY TYPE
-      # ─────────────────────────────────────────
       - name: "📝 Section B: Source code files organized by type"
         shell: bash
         run: |
+          set -euo pipefail
+
           REPORT="/tmp/source_files.txt"
 
-          # ── Helper: exclude .git and node_modules, match by name patterns ──
+          # ── Sanitize GitHub context values ──
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.ref_name }}"
+          SHA="${{ github.sha }}"
+
+          # ── Helper: always exits clean, never fails the step ──
           # Single-name:  repo_find -name "*.c"
           # Multi-name:   repo_find -name "*.cpp" -o -name "*.cc"
           repo_find() {
             find . \
               $ -path '*/.git' -o -path '*/node_modules' $ -prune \
               -o -type f $ "$@" $ -print \
-              2>/dev/null
+              2>/dev/null \
+              || true
           }
 
-          # ── Sanitize GitHub context values ──
-          REPO="${{ github.repository }}"
-          BRANCH="${{ github.ref_name }}"
-          SHA="${{ github.sha }}"
+          # ── Helper: write one file-type section to the report ──
+          # Usage: write_section "LABEL TEXT" /tmp/out.txt -name "*.c"
+          # Extra args after the tmp file are passed straight to repo_find
+          write_section() {
+            local label="$1"
+            local tmpfile="$2"
+            shift 2
+
+            echo "────────────────────────────────────────" >> "$REPORT"
+            echo "  $label"                                 >> "$REPORT"
+            echo "────────────────────────────────────────" >> "$REPORT"
+
+            # Run find — always succeeds due to || true in repo_find
+            repo_find "$@" | sort > "$tmpfile" || true
+
+            if [ -s "$tmpfile" ]; then
+              cat "$tmpfile" >> "$REPORT"
+            else
+              echo "  (none found)" >> "$REPORT"
+            fi
+
+            local count=0
+            if [ -f "$tmpfile" ]; then
+              count=$(wc -l < "$tmpfile" | tr -d ' ')
+            fi
+            echo "  Count: $count" >> "$REPORT"
+            echo ""                >> "$REPORT"
+
+            # Return the count via stdout for capture
+            echo "$count"
+          }
 
           echo "============================================================" > "$REPORT"
           echo "  SOURCE CODE FILE INVENTORY"                                >> "$REPORT"
@@ -127,66 +159,38 @@ jobs:
           echo ""                                                            >> "$REPORT"
 
           # ── C Source Files ──
-          echo "────────────────────────────────────────" >> "$REPORT"
-          echo "  C SOURCE FILES (.c)"                    >> "$REPORT"
-          echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find -name "*.c" | sort > /tmp/c_files.txt
-          if [ -s /tmp/c_files.txt ]; then
-            cat /tmp/c_files.txt >> "$REPORT"
-          else
-            echo "  (none found)" >> "$REPORT"
-          fi
-          C_COUNT=$(wc -l < /tmp/c_files.txt)
-          echo "  Count: $C_COUNT" >> "$REPORT"
-          echo ""                  >> "$REPORT"
+          C_COUNT=$(write_section \
+            "C SOURCE FILES (.c)" \
+            /tmp/c_files.txt \
+            -name "*.c")
 
           # ── C++ Source Files ──
-          echo "────────────────────────────────────────" >> "$REPORT"
-          echo "  C++ SOURCE FILES (.cpp / .cc / .cxx)"   >> "$REPORT"
-          echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find \
-            -name "*.cpp" \
-            -o -name "*.cc" \
-            -o -name "*.cxx" \
-            | sort > /tmp/cpp_files.txt
-          if [ -s /tmp/cpp_files.txt ]; then
-            cat /tmp/cpp_files.txt >> "$REPORT"
-          else
-            echo "  (none found)" >> "$REPORT"
-          fi
-          CPP_COUNT=$(wc -l < /tmp/cpp_files.txt)
-          echo "  Count: $CPP_COUNT" >> "$REPORT"
-          echo ""                    >> "$REPORT"
+          CPP_COUNT=$(write_section \
+            "C++ SOURCE FILES (.cpp / .cc / .cxx)" \
+            /tmp/cpp_files.txt \
+            -name "*.cpp" -o -name "*.cc" -o -name "*.cxx")
 
           # ── Header Files ──
-          echo "────────────────────────────────────────" >> "$REPORT"
-          echo "  HEADER FILES (.h / .hpp)"               >> "$REPORT"
-          echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find \
-            -name "*.h" \
-            -o -name "*.hpp" \
-            | sort > /tmp/header_files.txt
-          if [ -s /tmp/header_files.txt ]; then
-            cat /tmp/header_files.txt >> "$REPORT"
-          else
-            echo "  (none found)" >> "$REPORT"
-          fi
-          H_COUNT=$(wc -l < /tmp/header_files.txt)
-          echo "  Count: $H_COUNT" >> "$REPORT"
-          echo ""                  >> "$REPORT"
+          H_COUNT=$(write_section \
+            "HEADER FILES (.h / .hpp)" \
+            /tmp/header_files.txt \
+            -name "*.h" -o -name "*.hpp")
 
           # ── Python Files ──
           echo "────────────────────────────────────────" >> "$REPORT"
           echo "  PYTHON FILES (.py)"                     >> "$REPORT"
           echo "  (Build scripts, bindings, tests)"       >> "$REPORT"
           echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find -name "*.py" | sort > /tmp/python_files.txt
+          repo_find -name "*.py" | sort > /tmp/python_files.txt || true
           if [ -s /tmp/python_files.txt ]; then
             cat /tmp/python_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          PY_COUNT=$(wc -l < /tmp/python_files.txt)
+          PY_COUNT=0
+          if [ -f /tmp/python_files.txt ]; then
+            PY_COUNT=$(wc -l < /tmp/python_files.txt | tr -d ' ')
+          fi
           echo "  Count: $PY_COUNT" >> "$REPORT"
           echo ""                   >> "$REPORT"
 
@@ -195,13 +199,16 @@ jobs:
           echo "  JAVA FILES (.java)"                     >> "$REPORT"
           echo "  (Java/Android bindings)"                >> "$REPORT"
           echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find -name "*.java" | sort > /tmp/java_files.txt
+          repo_find -name "*.java" | sort > /tmp/java_files.txt || true
           if [ -s /tmp/java_files.txt ]; then
             cat /tmp/java_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          JAVA_COUNT=$(wc -l < /tmp/java_files.txt)
+          JAVA_COUNT=0
+          if [ -f /tmp/java_files.txt ]; then
+            JAVA_COUNT=$(wc -l < /tmp/java_files.txt | tr -d ' ')
+          fi
           echo "  Count: $JAVA_COUNT" >> "$REPORT"
           echo ""                     >> "$REPORT"
 
@@ -215,13 +222,16 @@ jobs:
             -o -name "*.ts" \
             -o -name "*.jsx" \
             -o -name "*.tsx" \
-            | sort > /tmp/js_files.txt
+            | sort > /tmp/js_files.txt || true
           if [ -s /tmp/js_files.txt ]; then
             cat /tmp/js_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          JS_COUNT=$(wc -l < /tmp/js_files.txt)
+          JS_COUNT=0
+          if [ -f /tmp/js_files.txt ]; then
+            JS_COUNT=$(wc -l < /tmp/js_files.txt | tr -d ' ')
+          fi
           echo "  Count: $JS_COUNT" >> "$REPORT"
           echo ""                   >> "$REPORT"
 
@@ -229,13 +239,16 @@ jobs:
           echo "────────────────────────────────────────" >> "$REPORT"
           echo "  GO FILES (.go)"                         >> "$REPORT"
           echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find -name "*.go" | sort > /tmp/go_files.txt
+          repo_find -name "*.go" | sort > /tmp/go_files.txt || true
           if [ -s /tmp/go_files.txt ]; then
             cat /tmp/go_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          GO_COUNT=$(wc -l < /tmp/go_files.txt)
+          GO_COUNT=0
+          if [ -f /tmp/go_files.txt ]; then
+            GO_COUNT=$(wc -l < /tmp/go_files.txt | tr -d ' ')
+          fi
           echo "  Count: $GO_COUNT" >> "$REPORT"
           echo ""                   >> "$REPORT"
 
@@ -243,13 +256,16 @@ jobs:
           echo "────────────────────────────────────────" >> "$REPORT"
           echo "  RUST FILES (.rs)"                       >> "$REPORT"
           echo "────────────────────────────────────────" >> "$REPORT"
-          repo_find -name "*.rs" | sort > /tmp/rust_files.txt
+          repo_find -name "*.rs" | sort > /tmp/rust_files.txt || true
           if [ -s /tmp/rust_files.txt ]; then
             cat /tmp/rust_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          RS_COUNT=$(wc -l < /tmp/rust_files.txt)
+          RS_COUNT=0
+          if [ -f /tmp/rust_files.txt ]; then
+            RS_COUNT=$(wc -l < /tmp/rust_files.txt | tr -d ' ')
+          fi
           echo "  Count: $RS_COUNT" >> "$REPORT"
           echo ""                   >> "$REPORT"
 
@@ -263,13 +279,16 @@ jobs:
             -o -name "*.cl" \
             -o -name "*.cuh" \
             -o -name "*.cu.cpp" \
-            | sort > /tmp/gpu_files.txt
+            | sort > /tmp/gpu_files.txt || true
           if [ -s /tmp/gpu_files.txt ]; then
             cat /tmp/gpu_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          GPU_COUNT=$(wc -l < /tmp/gpu_files.txt)
+          GPU_COUNT=0
+          if [ -f /tmp/gpu_files.txt ]; then
+            GPU_COUNT=$(wc -l < /tmp/gpu_files.txt | tr -d ' ')
+          fi
           echo "  Count: $GPU_COUNT" >> "$REPORT"
           echo ""                    >> "$REPORT"
 
@@ -281,13 +300,16 @@ jobs:
             -name "*.s" \
             -o -name "*.S" \
             -o -name "*.asm" \
-            | sort > /tmp/asm_files.txt
+            | sort > /tmp/asm_files.txt || true
           if [ -s /tmp/asm_files.txt ]; then
             cat /tmp/asm_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          ASM_COUNT=$(wc -l < /tmp/asm_files.txt)
+          ASM_COUNT=0
+          if [ -f /tmp/asm_files.txt ]; then
+            ASM_COUNT=$(wc -l < /tmp/asm_files.txt | tr -d ' ')
+          fi
           echo "  Count: $ASM_COUNT" >> "$REPORT"
           echo ""                    >> "$REPORT"
 
@@ -309,13 +331,16 @@ jobs:
             -o -name "*.ini" \
             -o -name "*.sln" \
             -o -name "*.vcxproj" \
-            | sort > /tmp/build_files.txt
+            | sort > /tmp/build_files.txt || true
           if [ -s /tmp/build_files.txt ]; then
             cat /tmp/build_files.txt >> "$REPORT"
           else
             echo "  (none found)" >> "$REPORT"
           fi
-          BUILD_COUNT=$(wc -l < /tmp/build_files.txt)
+          BUILD_COUNT=0
+          if [ -f /tmp/build_files.txt ]; then
+            BUILD_COUNT=$(wc -l < /tmp/build_files.txt | tr -d ' ')
+          fi
           echo "  Count: $BUILD_COUNT" >> "$REPORT"
           echo ""                      >> "$REPORT"
 
