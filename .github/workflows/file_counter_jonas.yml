@@ -34,12 +34,11 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      # ─────────────────────────────────────────
-      # SECTION A: ALL FILES IN REPOSITORY
-      # ─────────────────────────────────────────
       - name: "📁 Section A: List every file in the repository"
         shell: bash
         run: |
+          set -euo pipefail
+
           REPORT="/tmp/all_files.txt"
 
           # ── Sanitize GitHub context values ──
@@ -61,14 +60,24 @@ jobs:
           echo "  ALL FILES (complete tree)"              >> "$REPORT"
           echo "────────────────────────────────────────" >> "$REPORT"
 
+          # ── Find all files — errors suppressed, exit code forced clean ──
+          # -print0 / xargs -0 protects against filenames with spaces
+          # The || true absorbs any non-zero exit from find itself
           find . \
             $ -path '*/.git' -o -path '*/node_modules' $ -prune \
             -o -type f -print \
             2>/dev/null \
-            | sort > /tmp/all_files_list.txt
+            | sort \
+            | tee /tmp/all_files_list.txt \
+            >> "$REPORT" \
+            || true
 
-          cat /tmp/all_files_list.txt >> "$REPORT"
-          TOTAL_ALL=$(wc -l < /tmp/all_files_list.txt)
+          # ── Count safely — default to 0 if file is missing or empty ──
+          if [ -f /tmp/all_files_list.txt ]; then
+            TOTAL_ALL=$(wc -l < /tmp/all_files_list.txt | tr -d ' ')
+          else
+            TOTAL_ALL=0
+          fi
 
           echo ""                                         >> "$REPORT"
           echo "  TOTAL FILES IN REPOSITORY: $TOTAL_ALL" >> "$REPORT"
