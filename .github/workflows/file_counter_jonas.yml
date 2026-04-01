@@ -1,4 +1,4 @@
-# Jonas: On 03/31/2026 built this to list out the OSV Scanner files and dependencies.
+# Jonas: On 04/01/2026 built this to list out the OSV Scanner files and dependencies.
 # Fixed: heredocs, find grouping, redundancy, empty output, function scoping.
 
 name: Jonas File Count
@@ -438,7 +438,7 @@ jobs:
             # ── Unique system includes ──
             echo "  --- Unique System Includes <...> ---" >> "$REPORT"
             echo "  (External/system libraries)" >> "$REPORT"
-            grep -rh "^#include\s*<" --include="*.c" --include="*.cpp" \
+            grep -rh "#include[[:space:]]*<" --include="*.c" --include="*.cpp" \
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | \
               sed 's/^[[:space:]]*//' | sort -u > /tmp/sys_includes.txt || true
             SYS_COUNT=$(wc -l < /tmp/sys_includes.txt || echo 0)
@@ -454,7 +454,7 @@ jobs:
             # ── Unique local includes ──
             echo "  --- Unique Project Includes "..." ---" >> "$REPORT"
             echo "  (Files within this project)" >> "$REPORT"
-            grep -rh '^#include\s*"' --include="*.c" --include="*.cpp" \
+            grep -rh '#include[[:space:]]*"' --include="*.c" --include="*.cpp" \
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | \
               sed 's/^[[:space:]]*//' | sort -u > /tmp/local_includes.txt || true
             LOCAL_COUNT=$(wc -l < /tmp/local_includes.txt || echo 0)
@@ -470,10 +470,10 @@ jobs:
             # ── Full mapping (file:line:#include) ──
             echo "  --- Include Map (file:line:#include) ---" >> "$REPORT"
             echo "  (First 500 entries shown)" >> "$REPORT"
-            grep -rn "^#include" --include="*.c" --include="*.cpp" \
+            grep -rn "#include" --include="*.c" --include="*.cpp" \
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | \
               sort | head -500 >> "$REPORT" || true
-            TOTAL_INCLUDES=$(grep -rn "^#include" --include="*.c" --include="*.cpp" \
+            TOTAL_INCLUDES=$(grep -rn "#include" --include="*.c" --include="*.cpp" \
               --include="*.h" --include="*.hpp" --include="*.cc" . 2>/dev/null | wc -l || echo 0)
             echo "" >> "$REPORT"
             echo "  Total include statements: $TOTAL_INCLUDES" >> "$REPORT"
@@ -792,7 +792,6 @@ jobs:
           name: 04-summary-report
           path: summary_report.txt
           retention-days: 90
-
 
 
   
